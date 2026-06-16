@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skyryse · FAIR Review</title>
+<style>
+  :root {
+    --ink:#0a0e14; --hero1:#33465f; --hero2:#0a0e14;
+    --bg:#eef1f5; --card:#ffffff; --line:#e3e7ee; --muted:#6a7480;
+    --accent:#3f8cff; --accent-d:#1f6fe0;
+    --ok:#1a7f37; --bad:#c62828; --warn:#b26a00;
+    --steel:#9fb0c3;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); }
+  a { color:var(--accent-d); }
+
+  /* ---- brand / hero ---- */
+  .hero { background:linear-gradient(160deg,var(--hero1) 0%,var(--hero2) 70%); color:#fff; padding:22px 32px 26px; }
+  .brandrow { display:flex; align-items:center; gap:14px; }
+  .logo-mark { width:34px; height:40px; flex:none; }
+  .logo-mark path { fill:#ffffff; }
+  .wordmark { font-weight:700; letter-spacing:5px; font-size:22px; }
+  .wordmark .sky { color:var(--steel); }
+  .wordmark .ryse { color:#fff; }
+  .hero h1 { font-size:15px; font-weight:600; letter-spacing:1px; margin:16px 0 2px; text-transform:uppercase; color:#dce6f2; }
+  .hero p { margin:0; color:#9fb0c3; font-size:13px; }
+
+  main { max-width:1120px; margin:-14px auto 40px; padding:0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:22px; margin-bottom:20px; box-shadow:0 1px 3px rgba(10,14,20,.05); }
+  h2 { font-size:12px; margin:0 0 16px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+  label { font-size:11px; color:var(--muted); display:block; margin-bottom:5px; letter-spacing:.3px; }
+  input[type=text], textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:7px; font:inherit; background:#fbfcfe; }
+  input[type=text]:focus, textarea:focus { outline:none; border-color:var(--accent); background:#fff; }
+  textarea { resize:vertical; min-height:52px; }
+
+  .drop { border:2px dashed var(--line); border-radius:10px; padding:24px; text-align:center; color:var(--muted); margin-top:14px; cursor:pointer; transition:.15s; }
+  .drop.over { border-color:var(--accent); color:var(--accent-d); background:#f5f9ff; }
+  .filelist { font-size:13px; margin:10px 0 0; padding-left:18px; }
+
+  button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:10px 18px; font:inherit; font-weight:600; cursor:pointer; transition:.12s; }
+  button:hover { background:var(--accent-d); }
+  button.ghost { background:#eef2f7; color:var(--ink); }
+  button.ghost:hover { background:#e2e8f1; }
+  button.dark { background:var(--ink); }
+  button.dark:hover { background:#1b2433; }
+  button:disabled { opacity:.45; cursor:default; }
+  .btnrow { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th,td { text-align:left; padding:10px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+  tr.clickable { cursor:pointer; }
+  tr.clickable:hover { background:#f3f7fd; }
+
+  .badge { display:inline-block; padding:3px 11px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.3px; }
+  .b-approved{background:#e3f3e7;color:var(--ok);} .b-unapproved{background:#fdebec;color:var(--bad);}
+  .b-needs_info{background:#fdf3e3;color:var(--warn);} .b-reviewing{background:#e7efff;color:var(--accent-d);}
+  .b-new{background:#eef1f5;color:var(--muted);} .b-error{background:#fdebec;color:var(--bad);} .b-reviewed{background:#e3f3e7;color:var(--ok);}
+
+  .verdict-banner { padding:18px 22px; border-radius:10px; font-size:16px; font-weight:700; margin-bottom:18px; }
+  .v-APPROVED{background:#e3f3e7;color:var(--ok);} .v-UNAPPROVED{background:#fdebec;color:var(--bad);} .v-NEEDS_INFO{background:#fdf3e3;color:var(--warn);}
+  .summary { white-space:pre-wrap; line-height:1.6; }
+
+  .finding { border:1px solid var(--line); border-left:4px solid var(--line); border-radius:8px; padding:13px 15px; margin-bottom:11px; }
+  .finding.major{border-left-color:var(--bad);} .finding.minor{border-left-color:var(--warn);}
+  .finding .loc{font-size:13px;color:var(--muted);margin-top:6px;} .finding .act{font-size:13px;margin-top:4px;}
+  .sev{font-weight:800;font-size:11px;text-transform:uppercase;} .sev-major{color:var(--bad);} .sev-minor{color:var(--warn);} .sev-observation{color:var(--muted);}
+  .broken{color:var(--bad);font-weight:700;}
+
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #c6d4f5;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .muted{color:var(--muted);font-size:13px;} #detail{display:none;}
+  .match-yes{color:var(--ok);font-weight:700;} .match-no{color:var(--bad);font-weight:700;} .match-na{color:var(--muted);}
+  .verify-box{background:#f7faff;border:1px solid #dbe7fb;border-radius:9px;padding:14px 16px;margin-top:14px;}
+  .qlist li{margin:6px 0;}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px;}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="brandrow">
+    <svg class="logo-mark" viewBox="0 0 100 116" aria-hidden="true">
+      <path d="M6 5 L33 5 L50 63 Z"/>
+      <path d="M94 5 L67 5 L50 63 Z"/>
+      <path d="M44 72 L56 72 L50 113 Z"/>
+    </svg>
+    <span class="wordmark"><span class="sky">SKY</span><span class="ryse">RYSE</span></span>
+  </div>
+  <h1>FAIR Review</h1>
+  <p>AS9102 supplier documentation review — AI-assisted, engineer-approved</p>
+</div>
+
+<main>
+
+  <section class="card" id="newPart">
+    <h2>New FAIR Package</h2>
+    <div class="grid">
+      <div><label>Part number *</label><input type="text" id="f_pn" placeholder="1101021-01"></div>
+      <div><label>Revision</label><input type="text" id="f_rev" placeholder="-"></div>
+      <div><label>Part name</label><input type="text" id="f_name" placeholder="auto-filled from documents if blank"></div>
+      <div><label>Supplier</label><input type="text" id="f_sup" placeholder="AH Machine Inc"></div>
+      <div><label>PO number</label><input type="text" id="f_po" placeholder="3307"></div>
+    </div>
+    <div style="margin-top:12px"><label>Notes for the reviewer (optional)</label>
+      <textarea id="f_notes" placeholder="e.g. drawing attached; supplier claims delta FAIR"></textarea>
+    </div>
+    <div class="drop" id="drop">Drop supplier documents here or click to browse<br>
+      <span class="muted">PDF, Excel, Word, images — scanned certs are fine</span>
+      <input type="file" id="fileInput" multiple hidden>
+    </div>
+    <ul class="filelist" id="pendingFiles"></ul>
+    <div class="btnrow">
+      <button id="btnCreate">Upload package</button>
+      <button id="btnCreateReview" class="dark">Upload &amp; start review</button>
+    </div>
+    <div class="hint" id="createMsg"></div>
+  </section>
+
+  <section class="card">
+    <div class="topbar"><h2 style="margin:0">Parts</h2>
+      <button class="ghost" onclick="loadParts()">Refresh</button></div>
+    <table>
+      <thead><tr><th>Part #</th><th>Name</th><th>Supplier</th><th>PO</th><th>Docs</th><th>Status</th><th>Verdict</th></tr></thead>
+      <tbody id="partsBody"></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="detail">
+    <div class="topbar">
+      <h2 style="margin:0" id="d_title">Part</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="btnReview">Run review</button>
+        <a id="btnReport" href="#" style="display:none"><button class="ghost">Download report (.md)</button></a>
+        <button class="ghost" onclick="hideDetail()">Close</button>
+      </div>
+    </div>
+    <div id="d_status" class="muted" style="margin-bottom:14px"></div>
+
+    <h2>Part details (editable)</h2>
+    <div class="grid">
+      <div><label>Part number *</label><input type="text" id="e_pn"></div>
+      <div><label>Revision</label><input type="text" id="e_rev"></div>
+      <div><label>Part name</label><input type="text" id="e_name"></div>
+      <div><label>Supplier</label><input type="text" id="e_sup"></div>
+      <div><label>PO number</label><input type="text" id="e_po"></div>
+    </div>
+    <div style="margin-top:12px"><label>Notes</label><textarea id="e_notes"></textarea></div>
+    <div class="btnrow">
+      <button id="btnSave">Save changes</button>
+      <button id="btnVerify" class="ghost">Verify against documents</button>
+    </div>
+    <div class="hint" id="editMsg"></div>
+    <div id="verifyPanel"></div>
+
+    <div id="d_files" class="muted" style="margin:16px 0 4px"></div>
+    <div id="d_review"></div>
+  </section>
+
+</main>
+<script>
+let pending = [], currentId = null, pollTimer = null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => { const d=document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; };
+const norm = (s) => (s ?? "").toString().toLowerCase().replace(/[\s\-_.]/g,"").trim();
+
+/* ---------- upload form ---------- */
+const drop=$("drop"), fileInput=$("fileInput");
+drop.onclick=()=>fileInput.click();
+drop.ondragover=(e)=>{e.preventDefault();drop.classList.add("over");};
+drop.ondragleave=()=>drop.classList.remove("over");
+drop.ondrop=(e)=>{e.preventDefault();drop.classList.remove("over");addFiles(e.dataTransfer.files);};
+fileInput.onchange=()=>addFiles(fileInput.files);
+function addFiles(list){ for(const f of list) pending.push(f);
+  $("pendingFiles").innerHTML = pending.map(f=>`<li>${esc(f.name)} <span class="muted">(${(f.size/1024).toFixed(0)} KB)</span></li>`).join(""); }
+
+async function createPart(startReview){
+  const pn=$("f_pn").value.trim();
+  if(!pn){ $("createMsg").textContent="Part number is required."; return; }
+  const fd=new FormData();
+  fd.append("part_number",pn); fd.append("revision",$("f_rev").value);
+  fd.append("part_name",$("f_name").value); fd.append("supplier",$("f_sup").value);
+  fd.append("po_number",$("f_po").value); fd.append("notes",$("f_notes").value);
+  for(const f of pending) fd.append("files",f);
+  $("createMsg").innerHTML='<span class="spinner"></span>Uploading…';
+  const res=await fetch("/api/parts",{method:"POST",body:fd});
+  if(!res.ok){ $("createMsg").textContent="Error: "+(await res.json()).detail; return; }
+  const data=await res.json();
+  $("createMsg").textContent=`Saved ${data.saved_files.length} file(s) for ${data.id}.`;
+  pending=[]; $("pendingFiles").innerHTML=""; fileInput.value="";
+  ["f_pn","f_rev","f_name","f_sup","f_po","f_notes"].forEach(i=>$(i).value="");
+  if(startReview) await fetch(`/api/parts/${data.id}/review`,{method:"POST"});
+  await loadParts(); openDetail(data.id);
+}
+$("btnCreate").onclick=()=>createPart(false);
+$("btnCreateReview").onclick=()=>createPart(true);
+
+/* ---------- parts list ---------- */
+async function loadParts(){
+  const parts=await(await fetch("/api/parts")).json();
+  $("partsBody").innerHTML = parts.map(p=>`
+    <tr class="clickable" onclick="openDetail('${p.id}')">
+      <td><strong>${esc(p.part_number)}</strong>${p.revision?` <span class="muted">${esc(p.revision)}</span>`:""}</td>
+      <td>${esc(p.part_name)}</td><td>${esc(p.supplier)}</td><td>${esc(p.po_number)}</td>
+      <td>${p.file_count}</td><td>${statusBadge(p.status)}</td>
+      <td>${p.verdict?verdictBadge(p.verdict):""}</td>
+    </tr>`).join("") || '<tr><td colspan="7" class="muted">No parts yet — upload your first FAIR package above.</td></tr>';
+}
+const statusBadge=(s)=>`<span class="badge b-${s}">${s==="reviewing"?'<span class="spinner"></span>reviewing':s}</span>`;
+const verdictBadge=(v)=>`<span class="badge b-${v.toLowerCase()}">${v.replace("_"," ")}</span>`;
+
+/* ---------- detail ---------- */
+async function openDetail(id){ currentId=id; $("detail").style.display="block"; await refreshDetail(); $("detail").scrollIntoView({behavior:"smooth"}); }
+function hideDetail(){ $("detail").style.display="none"; currentId=null; if(pollTimer){clearTimeout(pollTimer);pollTimer=null;} }
+
+let lastMeta=null;
+async function refreshDetail(){
+  if(!currentId) return;
+  const {meta,review}=await(await fetch(`/api/parts/${currentId}`)).json();
+  lastMeta=meta;
+  $("d_title").textContent=`${meta.part_number} ${meta.revision?"Rev "+meta.revision:""}${meta.part_name?" — "+meta.part_name:""}`;
+  $("d_status").innerHTML=`Status: ${statusBadge(meta.status)}`+(meta.error?` <span class="broken">${esc(meta.error)}</span>`:"");
+
+  // editable fields (don't clobber while user is typing mid-edit unless first load of this part)
+  if($("e_pn").dataset.part!==meta.id){
+    $("e_pn").value=meta.part_number||""; $("e_rev").value=meta.revision||"";
+    $("e_name").value=meta.part_name||""; $("e_sup").value=meta.supplier||"";
+    $("e_po").value=meta.po_number||""; $("e_notes").value=meta.notes||"";
+    $("e_pn").dataset.part=meta.id;
+  }
+
+  $("btnReview").disabled=meta.status==="reviewing";
+  $("btnReview").textContent=meta.status==="reviewed"?"Re-run review":"Run review";
+  $("btnVerify").disabled=!!meta.verifying;
+  $("btnVerify").innerHTML=meta.verifying?'<span class="spinner"></span>Reading documents…':"Verify against documents";
+  $("btnReport").style.display=review?"inline":"none";
+  $("btnReport").href=`/api/parts/${meta.id}/report.md`;
+
+  renderVerify(meta);
+  $("d_files").innerHTML="Documents: "+(meta.files||[]).map(f=>`<a href="/api/parts/${meta.id}/files/${encodeURIComponent(f)}" target="_blank">${esc(f)}</a>`).join(" · ");
+  $("d_review").innerHTML=review?renderReview(review):(meta.status==="reviewing"?'<div class="muted"><span class="spinner"></span>Claude is reviewing the package — typically 1–3 minutes…</div>':"");
+
+  if(meta.status==="reviewing"||meta.verifying){ pollTimer=setTimeout(refreshDetail,4000); loadParts(); }
+  else if(pollTimer){ clearTimeout(pollTimer); pollTimer=null; loadParts(); }
+}
+
+/* ---------- save edits ---------- */
+$("btnSave").onclick=async()=>{
+  const fd=new FormData();
+  fd.append("part_number",$("e_pn").value); fd.append("revision",$("e_rev").value);
+  fd.append("part_name",$("e_name").value); fd.append("supplier",$("e_sup").value);
+  fd.append("po_number",$("e_po").value); fd.append("notes",$("e_notes").value);
+  $("editMsg").innerHTML='<span class="spinner"></span>Saving…';
+  const res=await fetch(`/api/parts/${currentId}/edit`,{method:"POST",body:fd});
+  if(!res.ok){ $("editMsg").textContent="Error: "+(await res.json()).detail; return; }
+  const data=await res.json();
+  $("editMsg").textContent="Saved.";
+  $("e_pn").dataset.part="";           // force re-sync of fields
+  currentId=data.id;                   // id may have changed if part # changed
+  await refreshDetail(); loadParts();
+};
+
+/* ---------- verify against documents ---------- */
+$("btnVerify").onclick=async()=>{
+  $("editMsg").textContent="";
+  const res=await fetch(`/api/parts/${currentId}/verify`,{method:"POST"});
+  if(!res.ok){ alert((await res.json()).detail); return; }
+  refreshDetail();
+};
+
+function renderVerify(meta){
+  const ex=meta.extracted;
+  if(meta.verify_error){ $("verifyPanel").innerHTML=`<div class="verify-box"><span class="broken">Verification failed: ${esc(meta.verify_error)}</span></div>`; return; }
+  if(!ex){ $("verifyPanel").innerHTML=""; return; }
+  const rows=[
+    ["Part number", meta.part_number, ex.part_number, ex.found_part_number],
+    ["Part name",   meta.part_name,   ex.part_name,   !!ex.part_name],
+    ["Revision",    meta.revision,    ex.revision,    !!ex.revision],
+    ["Supplier",    meta.supplier,    ex.supplier,    ex.found_supplier],
+    ["PO number",   meta.po_number,   ex.po_number,   ex.found_po_number],
+  ];
+  let html=`<div class="verify-box"><strong>Read from the documents</strong> — compare what you entered against what the package actually shows:
+    <table style="margin-top:10px"><thead><tr><th>Field</th><th>You entered</th><th>Found in documents</th><th>Check</th></tr></thead><tbody>`;
+  for(const [label,entered,found,present] of rows){
+    let mark;
+    if(!present||!found){ mark=`<span class="match-no">✗ not found</span>`; }
+    else if(!entered){ mark=`<span class="match-na">— (blank)</span>`; }
+    else if(norm(entered)===norm(found)){ mark=`<span class="match-yes">✓ match</span>`; }
+    else { mark=`<span class="match-no">✗ differs</span>`; }
+    html+=`<tr><td>${label}</td><td>${esc(entered)||'<span class="muted">—</span>'}</td><td>${esc(found)||'<span class="muted">—</span>'}</td><td>${mark}</td></tr>`;
+  }
+  html+="</tbody></table>";
+  if(ex.discrepancy_note) html+=`<div class="hint" style="margin-top:8px">⚠ ${esc(ex.discrepancy_note)}</div>`;
+  html+=`<div class="btnrow"><button class="ghost" onclick="useDocValues()">Use document values</button></div></div>`;
+  $("verifyPanel").innerHTML=html;
+}
+function useDocValues(){
+  const ex=lastMeta&&lastMeta.extracted; if(!ex) return;
+  if(ex.part_number) $("e_pn").value=ex.part_number;
+  if(ex.part_name) $("e_name").value=ex.part_name;
+  if(ex.revision) $("e_rev").value=ex.revision;
+  if(ex.supplier) $("e_sup").value=ex.supplier;
+  if(ex.po_number) $("e_po").value=ex.po_number;
+  $("editMsg").textContent='Document values filled in — review them and click "Save changes".';
+}
+
+/* ---------- review rendering ---------- */
+$("btnReview").onclick=async()=>{
+  const res=await fetch(`/api/parts/${currentId}/review`,{method:"POST"});
+  if(!res.ok) alert((await res.json()).detail);
+  refreshDetail();
+};
+function renderReview(r){
+  let html=`<h2 style="margin-top:8px">Review result</h2><div class="verdict-banner v-${r.verdict}">Verdict: ${r.verdict.replace("_"," ")}
+    &nbsp;—&nbsp; traceability ${r.traceability_complete?"COMPLETE":"INCOMPLETE"}</div>`;
+  html+=`<div class="summary">${esc(r.summary)}</div>`;
+  html+=`<h2 style="margin-top:20px">Traceability chain</h2><table><thead><tr><th>Step</th><th>Entity</th><th>Evidence</th><th>Key IDs</th><th>Link</th></tr></thead><tbody>`;
+  for(const s of r.traceability_chain||[]) html+=`<tr><td>${esc(s.step)}</td><td>${esc(s.entity)}</td><td>${esc(s.document)}</td><td>${esc(s.key_ids)}</td><td>${s.linked?"✓":'<span class="broken">✗ BROKEN</span>'}</td></tr>`;
+  html+=`</tbody></table>`;
+  html+=`<h2 style="margin-top:20px">Findings (${(r.findings||[]).length})</h2>`;
+  for(const f of r.findings||[]) html+=`<div class="finding ${f.severity}"><span class="sev sev-${f.severity}">${f.severity}</span> · <strong>${esc(f.category)}</strong>
+      <div style="margin-top:4px">${esc(f.description)}</div><div class="loc">📍 ${esc(f.location)}</div><div class="act">➜ ${esc(f.required_action)}</div></div>`;
+  if((r.clarifying_questions||[]).length) html+=`<h2 style="margin-top:20px">Clarifying questions</h2><ul class="qlist">`+r.clarifying_questions.map(q=>`<li>${esc(q)}</li>`).join("")+"</ul>";
+  if(r.usage) html+=`<div class="muted" style="margin-top:16px">Model: ${esc(r.model||"")} · tokens in/out: ${r.usage.input_tokens}/${r.usage.output_tokens} (cache read: ${r.usage.cache_read_input_tokens})</div>`;
+  return html;
+}
+
+loadParts();
+</script>
+</body>
+</html>
