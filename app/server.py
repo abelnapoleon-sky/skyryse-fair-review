@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import pipeline
+from app import jira_client
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 PARTS_DIR = ROOT_DIR / "parts"
@@ -84,6 +85,7 @@ def list_parts():
                 "revision": meta.get("revision", ""),
                 "supplier": meta.get("supplier", ""),
                 "po_number": meta.get("po_number", ""),
+                "sep_number": meta.get("sep_number", ""),
                 "status": meta.get("status", "new"),
                 "verdict": meta.get("verdict"),
                 "created_at": meta.get("created_at"),
@@ -100,6 +102,7 @@ async def create_part(
     part_name: str = Form(""),
     supplier: str = Form(""),
     po_number: str = Form(""),
+    sep_number: str = Form(""),
     notes: str = Form(""),
     files: list[UploadFile] = File(default=[]),
 ):
@@ -123,6 +126,7 @@ async def create_part(
         "part_name": part_name.strip(),
         "supplier": supplier.strip(),
         "po_number": po_number.strip(),
+        "sep_number": sep_number.strip(),
         "notes": notes.strip(),
     })
 
@@ -134,6 +138,107 @@ async def create_part(
     _audit("part_created" if is_new else "part_updated", part_id,
            f"files added: {', '.join(saved) or 'none'}")
     return {"id": part_id, "saved_files": saved}
+
+
+@app.post("/api/parts/from-jira")
+def create_part_from_jira(jira_key: str = Form(...)):
+    if not jira_client.is_configured():
+        raise HTTPException(
+            400,
+            "Jira is not configured on this server. Set JIRA_BASE_URL, JIRA_EMAIL, "
+            "and JIRA_API_TOKEN as environment variables.",
+        )
+    key = jira_key.strip()
+    if not key:
+        raise HTTPException(400, "Jira ticket key is required")
+
+    part_id = _safe_id(key)
+    part_dir = PARTS_DIR / part_id
+    uploads_dir = part_dir / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        result = jira_client.download_attachments(key, uploads_dir, allowed_exts=ALLOWED_EXTS)
+    except jira_client.JiraError as exc:
+        raise HTTPException(400, str(exc))
+
+    if not result["saved"]:
+        raise HTTPException(400, f"No usable attachments found on {key}.")
+
+    if _meta_path(part_id).exists():
+        meta = _load_meta(part_id)
+    else:
+        meta = {
+            "id": part_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "status": "new",
+            "verdict": None,
+            "part_number": "",
+            "revision": "",
+            "part_name": "",
+            "supplier": "",
+            "po_number": "",
+            "notes": "",
+        }
+    meta["sep_number"] = key
+    meta.setdefault("files", [])
+    meta["files"] = sorted(set(meta["files"]) | set(result["saved"]))
+    _save_meta(part_id, meta)
+    _audit(
+        "jira_pull", part_id,
+        f"pulled {len(result['saved'])} file(s) from {key}"
+        + (f"; skipped (unsupported type): {', '.join(result['skipped'])}" if result["skipped"] else ""),
+    )
+
+    # Fully automatic: read the package and apply whatever it finds, no review step.
+    extract_error = None
+    found = None
+    try:
+        found = pipeline.extract_metadata(part_dir)
+        meta["extracted"] = found
+        if found.get("found_part_number") and found.get("part_number"):
+            meta["part_number"] = found["part_number"]
+        if found.get("part_name"):
+            meta["part_name"] = found["part_name"]
+        if found.get("revision"):
+            meta["revision"] = found["revision"]
+        if found.get("found_supplier") and found.get("supplier"):
+            meta["supplier"] = found["supplier"]
+        if found.get("found_po_number") and found.get("po_number"):
+            meta["po_number"] = found["po_number"]
+        _audit("auto_extracted", part_id, f"applied fields from documents: {found}")
+    except Exception as exc:
+        extract_error = f"{exc}"
+        meta["verify_error"] = extract_error
+        (part_dir / "verify_error.log").write_text(traceback.format_exc(), encoding="utf-8")
+        _audit("auto_extract_failed", part_id, extract_error)
+
+    # If a part number was found, rename the record to use it instead of the SEP key,
+    # same as a manual edit would. Skip silently (keep the SEP-keyed id) on collision.
+    new_part_number = (meta.get("part_number") or "").strip()
+    renamed_to = None
+    if new_part_number:
+        new_id = _safe_id(new_part_number)
+        if new_id != part_id and not (PARTS_DIR / new_id).exists():
+            old_report = part_dir / f"REVIEW_{part_id}.md"
+            (PARTS_DIR / part_id).rename(PARTS_DIR / new_id)
+            if old_report.exists():
+                (PARTS_DIR / new_id / f"REVIEW_{part_id}.md").rename(PARTS_DIR / new_id / f"REVIEW_{new_id}.md")
+            meta["id"] = new_id
+            part_id = new_id
+            renamed_to = new_id
+            _audit("auto_renamed", part_id, f"renamed from Jira key to part number {new_part_number}")
+
+    _save_meta(part_id, meta)
+    return {
+        "id": part_id,
+        "saved_files": result["saved"],
+        "skipped_files": result["skipped"],
+        "summary": result.get("summary", ""),
+        "extracted": found,
+        "extract_error": extract_error,
+        "renamed_to": renamed_to,
+    }
 
 
 @app.post("/api/parts/{part_id}/files")
@@ -157,6 +262,7 @@ def edit_part(
     part_name: str = Form(""),
     supplier: str = Form(""),
     po_number: str = Form(""),
+    sep_number: str = Form(""),
     notes: str = Form(""),
 ):
     meta = _load_meta(part_id)
@@ -186,6 +292,7 @@ def edit_part(
         "part_name": part_name.strip(),
         "supplier": supplier.strip(),
         "po_number": po_number.strip(),
+        "sep_number": sep_number.strip(),
         "notes": notes.strip(),
     })
     _save_meta(part_id, meta)

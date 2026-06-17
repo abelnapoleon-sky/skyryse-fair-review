@@ -99,12 +99,19 @@
 
   <section class="card" id="newPart">
     <h2>New FAIR Package</h2>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:16px">
+      <div style="flex:1"><label>Or pull straight from a Jira SEP ticket</label>
+        <input type="text" id="f_jira" placeholder="SEP-1234"></div>
+      <button id="btnPullJira" class="ghost">Pull from Jira</button>
+    </div>
+    <div class="hint" id="jiraMsg"></div>
     <div class="grid">
       <div><label>Part number *</label><input type="text" id="f_pn" placeholder="1101021-01"></div>
       <div><label>Revision</label><input type="text" id="f_rev" placeholder="-"></div>
       <div><label>Part name</label><input type="text" id="f_name" placeholder="auto-filled from documents if blank"></div>
       <div><label>Supplier</label><input type="text" id="f_sup" placeholder="AH Machine Inc"></div>
       <div><label>PO number</label><input type="text" id="f_po" placeholder="3307"></div>
+      <div><label>FAIR Submission SEP#</label><input type="text" id="f_sep" placeholder="SEP-1234"></div>
     </div>
     <div style="margin-top:12px"><label>Notes for the reviewer (optional)</label>
       <textarea id="f_notes" placeholder="e.g. drawing attached; supplier claims delta FAIR"></textarea>
@@ -125,7 +132,7 @@
     <div class="topbar"><h2 style="margin:0">Parts</h2>
       <button class="ghost" onclick="loadParts()">Refresh</button></div>
     <table>
-      <thead><tr><th>Part #</th><th>Name</th><th>Supplier</th><th>PO</th><th>Docs</th><th>Status</th><th>Verdict</th></tr></thead>
+      <thead><tr><th>Part #</th><th>Name</th><th>Supplier</th><th>PO</th><th>SEP#</th><th>Docs</th><th>Status</th><th>Verdict</th></tr></thead>
       <tbody id="partsBody"></tbody>
     </table>
   </section>
@@ -148,6 +155,7 @@
       <div><label>Part name</label><input type="text" id="e_name"></div>
       <div><label>Supplier</label><input type="text" id="e_sup"></div>
       <div><label>PO number</label><input type="text" id="e_po"></div>
+      <div><label>FAIR Submission SEP#</label><input type="text" id="e_sep"></div>
     </div>
     <div style="margin-top:12px"><label>Notes</label><textarea id="e_notes"></textarea></div>
     <div class="btnrow">
@@ -184,7 +192,7 @@ async function createPart(startReview){
   const fd=new FormData();
   fd.append("part_number",pn); fd.append("revision",$("f_rev").value);
   fd.append("part_name",$("f_name").value); fd.append("supplier",$("f_sup").value);
-  fd.append("po_number",$("f_po").value); fd.append("notes",$("f_notes").value);
+  fd.append("po_number",$("f_po").value); fd.append("sep_number",$("f_sep").value); fd.append("notes",$("f_notes").value);
   for(const f of pending) fd.append("files",f);
   $("createMsg").innerHTML='<span class="spinner"></span>Uploading…';
   const res=await fetch("/api/parts",{method:"POST",body:fd});
@@ -192,12 +200,33 @@ async function createPart(startReview){
   const data=await res.json();
   $("createMsg").textContent=`Saved ${data.saved_files.length} file(s) for ${data.id}.`;
   pending=[]; $("pendingFiles").innerHTML=""; fileInput.value="";
-  ["f_pn","f_rev","f_name","f_sup","f_po","f_notes"].forEach(i=>$(i).value="");
+  ["f_pn","f_rev","f_name","f_sup","f_po","f_sep","f_notes"].forEach(i=>$(i).value="");
   if(startReview) await fetch(`/api/parts/${data.id}/review`,{method:"POST"});
   await loadParts(); openDetail(data.id);
 }
 $("btnCreate").onclick=()=>createPart(false);
 $("btnCreateReview").onclick=()=>createPart(true);
+
+$("btnPullJira").onclick=async()=>{
+  const key=$("f_jira").value.trim();
+  if(!key){ $("jiraMsg").textContent="Enter a Jira ticket key, e.g. SEP-1234."; return; }
+  $("jiraMsg").innerHTML='<span class="spinner"></span>Pulling attachments and reading the package…';
+  const fd=new FormData(); fd.append("jira_key",key);
+  const res=await fetch("/api/parts/from-jira",{method:"POST",body:fd});
+  if(!res.ok){ $("jiraMsg").textContent="Error: "+(await res.json()).detail; return; }
+  const data=await res.json();
+  let msg=`Pulled ${data.saved_files.length} file(s) from ${key}.`;
+  if(data.skipped_files.length) msg+=` (${data.skipped_files.length} skipped — unsupported type)`;
+  if(data.extract_error){
+    msg+=` Could not auto-read metadata (${data.extract_error}) — fill in the fields manually below.`;
+  } else if(data.extracted){
+    const filled=["part_number","revision","supplier","po_number"].filter(k=>data.extracted[k]);
+    msg+= filled.length ? ` Auto-filled: ${filled.join(", ")}.` : " Documents didn't contain clear part number/revision/supplier/PO — fill in manually.";
+  }
+  $("jiraMsg").textContent=msg;
+  $("f_jira").value="";
+  await loadParts(); openDetail(data.id);
+};
 
 /* ---------- parts list ---------- */
 async function loadParts(){
@@ -205,10 +234,10 @@ async function loadParts(){
   $("partsBody").innerHTML = parts.map(p=>`
     <tr class="clickable" onclick="openDetail('${p.id}')">
       <td><strong>${esc(p.part_number)}</strong>${p.revision?` <span class="muted">${esc(p.revision)}</span>`:""}</td>
-      <td>${esc(p.part_name)}</td><td>${esc(p.supplier)}</td><td>${esc(p.po_number)}</td>
+      <td>${esc(p.part_name)}</td><td>${esc(p.supplier)}</td><td>${esc(p.po_number)}</td><td>${esc(p.sep_number)}</td>
       <td>${p.file_count}</td><td>${statusBadge(p.status)}</td>
       <td>${p.verdict?verdictBadge(p.verdict):""}</td>
-    </tr>`).join("") || '<tr><td colspan="7" class="muted">No parts yet — upload your first FAIR package above.</td></tr>';
+    </tr>`).join("") || '<tr><td colspan="8" class="muted">No parts yet — upload your first FAIR package above.</td></tr>';
 }
 const statusBadge=(s)=>`<span class="badge b-${s}">${s==="reviewing"?'<span class="spinner"></span>reviewing':s}</span>`;
 const verdictBadge=(v)=>`<span class="badge b-${v.toLowerCase()}">${v.replace("_"," ")}</span>`;
@@ -229,7 +258,7 @@ async function refreshDetail(){
   if($("e_pn").dataset.part!==meta.id){
     $("e_pn").value=meta.part_number||""; $("e_rev").value=meta.revision||"";
     $("e_name").value=meta.part_name||""; $("e_sup").value=meta.supplier||"";
-    $("e_po").value=meta.po_number||""; $("e_notes").value=meta.notes||"";
+    $("e_po").value=meta.po_number||""; $("e_sep").value=meta.sep_number||""; $("e_notes").value=meta.notes||"";
     $("e_pn").dataset.part=meta.id;
   }
 
@@ -253,7 +282,7 @@ $("btnSave").onclick=async()=>{
   const fd=new FormData();
   fd.append("part_number",$("e_pn").value); fd.append("revision",$("e_rev").value);
   fd.append("part_name",$("e_name").value); fd.append("supplier",$("e_sup").value);
-  fd.append("po_number",$("e_po").value); fd.append("notes",$("e_notes").value);
+  fd.append("po_number",$("e_po").value); fd.append("sep_number",$("e_sep").value); fd.append("notes",$("e_notes").value);
   $("editMsg").innerHTML='<span class="spinner"></span>Saving…';
   const res=await fetch(`/api/parts/${currentId}/edit`,{method:"POST",body:fd});
   if(!res.ok){ $("editMsg").textContent="Error: "+(await res.json()).detail; return; }
