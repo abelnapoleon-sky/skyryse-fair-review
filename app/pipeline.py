@@ -16,7 +16,7 @@ import pandas as pd
 import pdfplumber
 import pypdfium2 as pdfium
 
-MODEL = "claude-opus-4-8"
+MODEL = "claude-sonnet-4-6"
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
 CLAUSES_PATH = ROOT_DIR / "Skyryse Quality Clauses.md"
